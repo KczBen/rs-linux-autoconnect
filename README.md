@@ -19,7 +19,7 @@ By default, it automatically selects the system-wide default PipeWire audio inpu
 
 To help you figure out the names of your audio ports, a log file `jack_shim_debug.log` is generated your current working directory. For Rocksmith on Steam, this will be the game directory `steamapps/common/Rocksmith2014`
 
-The shim can be used with any* JACK application, provided it has only two input and two output ports. For this, the following additional environment variables are available:
+The shim can be used with any* JACK application, provided it has only two input and two output ports. The shim automatically tries to discover the name of the client it is running on. In case that fails, the following additional environment variables are available:
 
 **The below variables do not need to be set for Rocksmith 2014.**
 
