@@ -6,6 +6,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdbool.h>
 
 const char* HW_IN_L_VAR = "RS_PHYS_INPUT_L";
 const char* HW_IN_R_VAR = "RS_PHYS_INPUT_R";
@@ -50,8 +51,18 @@ int jack_activate (jack_client_t *client) {
     // These are *node* input and output ports. The physical input node has virtual outputs, the physical output node has virtual inputs
     // First two entries are the system "preference"
     // Regardless, print all nodes for the user
-    const char** input_ports = jack_get_ports(client, NULL, NULL, JackPortIsInput | JackPortIsPhysical);
-    const char** output_ports = jack_get_ports(client, NULL, NULL, JackPortIsOutput | JackPortIsPhysical);
+    const char** phys_output_ports = jack_get_ports(client, NULL, NULL, JackPortIsInput | JackPortIsPhysical);
+    const char** phys_input_ports = jack_get_ports(client, NULL, NULL, JackPortIsOutput | JackPortIsPhysical);
+    int phys_input_port_count = 0;
+    int phys_output_port_count = 0;
+
+    while (phys_input_ports[phys_input_port_count] != NULL) {
+        phys_input_port_count += 1;
+    }
+
+    while (phys_output_ports[phys_output_port_count] != NULL) {
+        phys_output_port_count += 1;
+    }
 
     const char* physical_input_l = getenv(HW_IN_L_VAR);
     const char* physical_input_r = getenv(HW_IN_R_VAR);
@@ -61,17 +72,29 @@ int jack_activate (jack_client_t *client) {
     // Get all application ports
     // If we are on PipeWire, then the client gets a pw- prefix we can't connect to
     // Strip it out and then check
+    bool pipewire = false;
     const char prefix[] = "pw-";
     const char* client_name = jack_get_client_name(client);
     int client_name_offset = 0;
     if (strncmp(prefix, client_name, 3) == 0) {
         // PipeWire, offset the pointer
+        pipewire = true;
         client_name_offset = 3;
         fprintf(log_file, "Running on PipeWire, searching for client %s\n", client_name + client_name_offset);
     }
 
     const char** game_input_ports = jack_get_ports(client, client_name + client_name_offset, NULL, JackPortIsInput);
     const char** game_output_ports = jack_get_ports(client, client_name + client_name_offset, NULL, JackPortIsOutput);
+    int game_input_port_count = 0;
+    int game_output_port_count = 0;
+
+    while (game_input_ports[game_input_port_count] != NULL) {
+        game_input_port_count += 1;
+    }
+
+    while (game_output_ports[game_output_port_count] != NULL) {
+        game_output_port_count += 1;
+    }
 
     const char* rs_in_l = getenv("RS_GAME_IN_L");
     const char* rs_in_r = getenv("RS_GAME_IN_R");
@@ -82,20 +105,42 @@ int jack_activate (jack_client_t *client) {
     // If at least one is set, only use the user defined ports
     // The user probably did that for a reason
     if (!physical_input_l && !physical_input_r) {
-        physical_input_l = output_ports[0];
-        physical_input_r = output_ports[1];
+        if (phys_input_port_count > 0) {
+            physical_input_l = phys_input_ports[0];
+
+            if (phys_input_port_count > 1) {
+                physical_input_r = phys_input_ports[1];
+            }
+        }
+
     }
 
     if (!physical_output_l && !physical_output_r) {
-        physical_output_l = input_ports[0];
-        physical_output_r = input_ports[1];
+        if (phys_output_port_count > 0) {
+            physical_output_l = phys_output_ports[0];
+            
+            if (phys_output_port_count > 1) {
+                physical_output_r = phys_output_ports[1];
+            }
+        }
     }
 
     if (!rs_in_l && !rs_in_r && !rs_out_l && !rs_out_r) {
-        rs_in_l = game_input_ports[0] + client_name_offset;
-        rs_in_r = game_input_ports[1] + client_name_offset;
-        rs_out_l = game_output_ports[0] + client_name_offset;
-        rs_out_r = game_output_ports[1] + client_name_offset;
+        if (game_input_port_count > 0) {
+            rs_in_l = game_input_ports[0] + client_name_offset;
+
+            if (game_input_port_count > 1) {
+                rs_in_r = game_input_ports[1] + client_name_offset;
+            }
+        }
+
+        if (game_output_port_count > 0) {
+            rs_out_l = game_output_ports[0] + client_name_offset;
+
+            if (game_output_port_count > 1) {
+                rs_out_r = game_output_ports[1] + client_name_offset;
+            }
+        }
     }
 
     // Wait for Rocksmith to wake up
@@ -121,25 +166,47 @@ int jack_activate (jack_client_t *client) {
             HW_OUT_L_VAR, getenv(HW_OUT_L_VAR) ?: "",
             HW_OUT_R_VAR, getenv(HW_OUT_R_VAR) ?: "");
 
-    fprintf(log_file, "\nFor example, to connect the jack input of a Scarlett Solo to the left input of Rocksmith,"
-            "put RS_PHYS_INPUT_L='Scarlett Solo (3rd Gen.) Pro:capture_AUX1' in your Steam launch options.\n");
+    fprintf(log_file, "\nFor example, to connect the jack input of a Scarlett Solo to the left input of Rocksmith, "
+            "put %s='Scarlett Solo (3rd Gen.) Pro:capture_AUX1' in your Steam launch options.\n", HW_IN_L_VAR);
 
-    if (output_ports) {
+    fprintf(log_file, "\nFound %d physical input ports and %d physical output ports\n", phys_input_port_count, phys_output_port_count);
+
+    if (phys_input_port_count) {
         fprintf(log_file, "\nPhysical JACK Input Ports:\n");
-        for (int i = 0; output_ports[i]; ++i) {
-            fprintf(log_file, "%s\n", output_ports[i]);
+        for (int i = 0; i < phys_input_port_count; ++i) {
+            fprintf(log_file, "%s\n", phys_input_ports[i]);
         }
 
-        free(output_ports);
+        free(phys_input_ports);
     }
 
-    if (input_ports) {
+    if (phys_output_port_count) {
         fprintf(log_file, "\nPhysical JACK Output Ports:\n");
-        for (int i = 0; input_ports[i]; ++i) {
-            fprintf(log_file, "%s\n", input_ports[i]);
+        for (int i = 0; i < phys_output_port_count; ++i) {
+            fprintf(log_file, "%s\n", phys_output_ports[i]);
         }
 
-        free(input_ports);
+        free(phys_output_ports);
+    }
+
+    fprintf(log_file, "\nFound %d game input ports and %d game output ports\n", game_input_port_count, game_output_port_count);
+
+    if (game_input_port_count) {
+        fprintf(log_file, "\nGame JACK Input Ports:\n");
+        for (int i = 0; i < game_input_port_count; ++i) {
+            fprintf(log_file, "%s\n", pipewire ? game_input_ports[i] + client_name_offset : game_input_ports[i]);
+        }
+
+        free(game_input_ports);
+    }
+
+    if (game_output_port_count) {
+        fprintf(log_file, "\nGame JACK Output Ports:\n");
+        for (int i = 0; i < game_output_port_count; ++i) {
+            fprintf(log_file, "%s\n", pipewire ? game_output_ports[i] + client_name_offset : game_output_ports[i]);
+        }
+
+        free(game_output_ports);
     }
 
     fclose(log_file);
