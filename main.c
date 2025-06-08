@@ -1,10 +1,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
-#include <stdlib.h>
 #include <jack/jack.h>
 #include <dlfcn.h>
-#include <stdarg.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
 
