@@ -8,7 +8,7 @@ The library hooks into the `jack_activate()` function to make JACK connections t
 ## How to use
 Download the latest version from the Releases tab. Place it anywhere on your system, and put `LD_PRELOAD=/path/to/librsshim.so %command%` in the Steam launch arguments for Rocksmith 2014.
 
-The shim must be loaded with `LD_PRELOAD` to have priority over the real `jack_activate` function.
+The shim must be the first library loaded with `LD_PRELOAD` to have priority over the real `jack_activate` function.
 
 By default, it automatically selects the system-wide default PipeWire audio input and output devices. This selection can be overwritten with environment variables:
 
@@ -17,7 +17,7 @@ By default, it automatically selects the system-wide default PipeWire audio inpu
 `RS_PHYS_OUTPUT_L` Left port of the output device\
 `RS_PHYS_OUTPUT_R` Right port of the output device
 
-To help you figure out the names of your audio ports, a log file `jack_shim_debug.log` is generated your current working directory. For Rocksmith on Steam, this will be the game directory `steamapps/common/Rocksmith2014`
+To help you figure out the names of your audio ports, a log file `jack_shim_debug.log` is generated your current working directory. For Rocksmith 2014 on Steam, this will be the game directory `steamapps/common/Rocksmith2014`
 
 The shim can be used with any* JACK application, provided it has only two input and two output ports. The shim automatically tries to discover the name of the client it is running on. In case that fails, the following additional environment variables are available:
 
@@ -39,7 +39,7 @@ For the above reasons, this will *not* work with REAPER, Carla, and many more JA
 
 It is recommended to download the prebuilt libraries from the Releases tab
 
-### Build dependencies (Debina, Ubuntu)
+### Build dependencies (Debian, Ubuntu)
 ```
 sudo dpkg --add-architecture i386
 sudo apt install build-essential gcc-multilib libjack-jackd2-dev:i386
