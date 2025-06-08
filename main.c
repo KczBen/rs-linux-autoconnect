@@ -5,6 +5,7 @@
 #include <dlfcn.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <string.h>
 
 const char* HW_IN_L_VAR = "RS_PHYS_INPUT_L";
 const char* HW_IN_R_VAR = "RS_PHYS_INPUT_R";
@@ -38,7 +39,7 @@ int jack_activate (jack_client_t *client) {
         return 1;
     }
 
-    fprintf(log_file, "Running shim library as %s\n\n", jack_get_client_name(client));
+    fprintf(log_file, "Running shim library as %s\n", jack_get_client_name(client));
 
     // Do the real Jack stuff
     int (*real_jack_activate)(jack_client_t *) = dlsym(RTLD_NEXT, "jack_activate");
@@ -56,6 +57,21 @@ int jack_activate (jack_client_t *client) {
     const char* physical_input_r = getenv(HW_IN_R_VAR);
     const char* physical_output_l = getenv(HW_OUT_L_VAR);
     const char* physical_output_r = getenv(HW_OUT_R_VAR);
+
+    // Get all application ports
+    // If we are on PipeWire, then the client gets a pw- prefix we can't connect to
+    // Strip it out and then check
+    const char prefix[] = "pw-";
+    const char* client_name = jack_get_client_name(client);
+    int client_name_offset = 0;
+    if (strncmp(prefix, client_name, 3) == 0) {
+        // PipeWire, offset the pointer
+        client_name_offset = 3;
+        fprintf(log_file, "Running on PipeWire, searching for client %s\n", client_name + client_name_offset);
+    }
+
+    const char** game_input_ports = jack_get_ports(client, client_name + client_name_offset, NULL, JackPortIsInput);
+    const char** game_output_ports = jack_get_ports(client, client_name + client_name_offset, NULL, JackPortIsOutput);
 
     const char* rs_in_l = getenv("RS_GAME_IN_L");
     const char* rs_in_r = getenv("RS_GAME_IN_R");
@@ -76,17 +92,17 @@ int jack_activate (jack_client_t *client) {
     }
 
     if (!rs_in_l && !rs_in_r && !rs_out_l && !rs_out_r) {
-        rs_in_l = "Rocksmith2014:in_1";
-        rs_in_r = "Rocksmith2014:in_2";
-        rs_out_l = "Rocksmith2014:out_1";
-        rs_out_r = "Rocksmith2014:out_2";
+        rs_in_l = game_input_ports[0] + client_name_offset;
+        rs_in_r = game_input_ports[1] + client_name_offset;
+        rs_out_l = game_output_ports[0] + client_name_offset;
+        rs_out_r = game_output_ports[1] + client_name_offset;
     }
 
     // Wait for Rocksmith to wake up
     sleep(1);
 
     // Connections
-    fprintf(log_file, "Beginning connections\n");
+    fprintf(log_file, "\nBeginning connections\n");
     try_connect(client, physical_input_l, rs_in_l, log_file);
     try_connect(client, physical_input_r, rs_in_r, log_file);
     try_connect(client, rs_out_l, physical_output_l, log_file);
@@ -113,6 +129,7 @@ int jack_activate (jack_client_t *client) {
         for (int i = 0; output_ports[i]; ++i) {
             fprintf(log_file, "%s\n", output_ports[i]);
         }
+
         free(output_ports);
     }
 
