@@ -6,7 +6,7 @@ To get Rocksmith 2014 running on Linux, follow [this guide.](https://github.com/
 The library hooks into the `jack_activate()` function to make JACK connections to Rocksmith 2014.
 
 ## How to use
-Download the latest version from the Releases tab. Extract it anywhere on your system, and put `LD_PRELOAD=/path/to/librsshim.so %command%` in the Steam launch arguments for Rocksmith 2014.
+Download the latest version from the Releases tab. Place it anywhere on your system, and put `LD_PRELOAD=/path/to/librsshim.so %command%` in the Steam launch arguments for Rocksmith 2014.
 
 The shim must be loaded with `LD_PRELOAD` to have priority over the real `jack_activate` function.
 
