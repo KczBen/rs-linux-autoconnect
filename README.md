@@ -41,11 +41,13 @@ It is recommended to download the prebuilt libraries from the Releases tab
 
 ### Build dependencies (Debina, Ubuntu)
 ```
-sudo apt install libjack-jackd2-dev:i386
+sudo dpkg --add-architecture i386
+sudo apt install build-essential gcc-multilib libjack-jackd2-dev:i386
 ```
 ### Build
 ```bash
-mkdir build && cd build
-cmake ..
-make
+git clone https://github.com/KczBen/rs-linux-autoconnect.git
+cd rs-linux-autoconnect
+cmake -B build/
+cmake --build build/
 ```
