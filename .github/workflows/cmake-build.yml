@@ -5,6 +5,7 @@ name: CMake on a single platform
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -29,3 +30,11 @@ jobs:
     - name: Build
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build
+
+    - name: Upload to release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: build/librsshim.so
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
