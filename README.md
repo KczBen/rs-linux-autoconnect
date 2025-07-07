@@ -6,9 +6,9 @@ To get Rocksmith 2014 running on Linux, follow [this guide.](https://github.com/
 The library hooks into the `jack_activate()` function to make JACK connections to Rocksmith 2014.
 
 ## How to use
-Download the latest version from the Releases tab. Place it anywhere on your system, and put `LD_PRELOAD=/path/to/librsshim.so %command%` in the Steam launch arguments for Rocksmith 2014.
+Download the latest version from the Releases tab. Place it anywhere on your system, and put `LD_PRELOAD=/path/to/librsshim.so %command%` in the Steam launch arguments for Rocksmith 2014. If your path contains spaces, you can surround it in 'single quotes' or "double quotes"
 
-The shim must be the first library loaded with `LD_PRELOAD` to have priority over the real `jack_activate` function.
+If you are preloading `libjack.so`, modify your existing `LD_PRELOAD` argument to `LD_PRELOAD=/path/to/librsshim.so:/path/to/libjack.so`. `librsshim.so` must come first in the library load order. **Two separate `LD_PRELOAD` arguments will not work!** The two paths must be part of the same `LD_PRELOAD` variable, separated by `:`.
 
 By default, it automatically selects the system-wide default PipeWire audio input and output devices. This selection can be overwritten with environment variables:
 
