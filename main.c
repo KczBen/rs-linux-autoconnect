@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+#include <errno.h>
 
 const char* HW_IN_L_VAR = "RS_PHYS_INPUT_L";
 const char* HW_IN_R_VAR = "RS_PHYS_INPUT_R";
@@ -15,22 +16,41 @@ const char* HW_OUT_R_VAR = "RS_PHYS_OUTPUT_R";
 
 void try_connect(jack_client_t *client, const char *src, const char *dst, FILE *log_file) {
     if (src == NULL) {
-        fprintf(log_file, "Source is unset, intentionally skipping connection to %s\n", dst);
+        fprintf(log_file, "Source is unset, skipping connection to %s\n", dst);
         return;
     }
 
     if (dst == NULL) {
-        fprintf(log_file, "Destination is unset, intentionally skipping connection from %s\n", src);
+        fprintf(log_file, "Destination is unset, skipping connection from %s\n", src);
         return;
     }
 
-    if (jack_connect(client, src, dst) != 0) {
-        fprintf(log_file, "Failed to connect %s -> %s\n", src, dst);
+    int connection_result = jack_connect(client, src, dst);
+    if (connection_result != 0) {
+        char* error = strerror(connection_result);
+        // pw-jack returns EINVAL if it can't find the port, or if they are not compatible
+        // jack_get_ports doesn't necessarily return a useful name on pw-jack
+        if (connection_result == EINVAL) {
+            const char* src_error = (jack_port_by_name(client, src) == NULL) ? src : NULL;
+            const char* dst_error = (jack_port_by_name(client, dst) == NULL) ? dst : NULL;
+            if (src_error && dst_error) {
+                asprintf(&error, "could not find requested ports %s and %s", src_error, dst_error);
+            }
+            
+            else if (src_error || dst_error) {
+                asprintf(&error, "could not find requested port %s", src_error ? src_error : dst_error);
+            }
+
+            else {
+                asprintf(&error, "port types are not compatible");
+            }
+        }
+        
+        fprintf(log_file, "Failed to connect %s -> %s: %s\n", src, dst, error);
+        return;
     }
 
-    else {
-        fprintf(log_file, "Connected %s -> %s\n", src, dst);
-    }
+    fprintf(log_file, "Connected %s -> %s\n", src, dst);
 }
 
 int jack_activate (jack_client_t *client) {
