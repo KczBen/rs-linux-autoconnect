@@ -164,7 +164,10 @@ int jack_activate (jack_client_t *client) {
     }
 
     // Wait for Rocksmith to wake up
-    sleep(1);
+    // Left input is always set
+    while (jack_port_by_name(client, rs_in_l) == NULL) {
+        usleep(1000*250);
+    }
 
     // Connections
     fprintf(log_file, "\nBeginning connections\n");
