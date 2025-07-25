@@ -8,11 +8,14 @@
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <ctype.h>
 
 const char* HW_IN_L_VAR = "RS_PHYS_INPUT_L";
 const char* HW_IN_R_VAR = "RS_PHYS_INPUT_R";
 const char* HW_OUT_L_VAR = "RS_PHYS_OUTPUT_L";
 const char* HW_OUT_R_VAR = "RS_PHYS_OUTPUT_R";
+
+bool pipewire = false;
 
 void try_connect(jack_client_t *client, const char *src, const char *dst, FILE *log_file) {
     if (src == NULL) {
@@ -53,6 +56,51 @@ void try_connect(jack_client_t *client, const char *src, const char *dst, FILE *
     fprintf(log_file, "Connected %s -> %s\n", src, dst);
 }
 
+// Remove prefixes and suffixes from client names
+char* clean_name(const char* port_name) {
+    if (pipewire == false) {
+        return strdup(port_name);
+    }
+
+    // Format is pw-client-12:port, remove pw-
+    port_name += 3;
+    
+    char *separator = strchr(port_name, ':');
+    // Only client name, no separator
+    if (!separator) {
+        return strdup(port_name);
+    }
+
+    char *suffix = separator;
+    while (suffix > port_name && *(suffix - 1) != '-') {
+        suffix -= 1;
+    }
+
+    // No suffix at all
+    if (*(suffix - 1) != '-') {
+        return strdup(port_name);
+    }
+
+    char *p = suffix;
+    while (p < separator) {
+        // Not numbers, probably part of the client name
+        if (!isdigit(*p)) {
+            return strdup(port_name);
+        }
+
+        p += 1;
+    }
+
+    // It's a valid "-number" suffix, remove it
+    size_t port_name_len = (suffix - 1) - port_name;
+    size_t suffix_len = strlen(separator);
+    char *result = malloc(port_name_len + suffix_len + 1);
+
+    memcpy(result, port_name, port_name_len);
+    memcpy(result + port_name_len, separator, suffix_len + 1);
+    return result;
+}
+
 int jack_activate (jack_client_t *client) {
     FILE *log_file = fopen("jack_shim_debug.log", "w");
     if (log_file == NULL) {
@@ -91,20 +139,16 @@ int jack_activate (jack_client_t *client) {
 
     // Get all application ports
     // If we are on PipeWire, then the client gets a pw- prefix we can't connect to
-    // Strip it out and then check
-    bool pipewire = false;
     const char prefix[] = "pw-";
     const char* client_name = jack_get_client_name(client);
-    int client_name_offset = 0;
     if (strncmp(prefix, client_name, 3) == 0) {
         // PipeWire, offset the pointer
         pipewire = true;
-        client_name_offset = 3;
-        fprintf(log_file, "Running on PipeWire, searching for client %s\n", client_name + client_name_offset);
+        fprintf(log_file, "Running on PipeWire, searching for client %s\n", clean_name(client_name));
     }
 
-    const char** game_input_ports = jack_get_ports(client, client_name + client_name_offset, NULL, JackPortIsInput);
-    const char** game_output_ports = jack_get_ports(client, client_name + client_name_offset, NULL, JackPortIsOutput);
+    const char** game_input_ports = jack_get_ports(client, clean_name(client_name), NULL, JackPortIsInput);
+    const char** game_output_ports = jack_get_ports(client, clean_name(client_name), NULL, JackPortIsOutput);
     int game_input_port_count = 0;
     int game_output_port_count = 0;
 
@@ -126,10 +170,10 @@ int jack_activate (jack_client_t *client) {
     // The user probably did that for a reason
     if (!physical_input_l && !physical_input_r) {
         if (phys_input_port_count > 0) {
-            physical_input_l = phys_input_ports[0];
+            physical_input_l = clean_name(phys_input_ports[0]);
 
             if (phys_input_port_count > 1) {
-                physical_input_r = phys_input_ports[1];
+                physical_input_r = clean_name(phys_input_ports[1]);
             }
         }
 
@@ -137,28 +181,28 @@ int jack_activate (jack_client_t *client) {
 
     if (!physical_output_l && !physical_output_r) {
         if (phys_output_port_count > 0) {
-            physical_output_l = phys_output_ports[0];
+            physical_output_l = clean_name(phys_output_ports[0]);
             
             if (phys_output_port_count > 1) {
-                physical_output_r = phys_output_ports[1];
+                physical_output_r = clean_name(phys_output_ports[1]);
             }
         }
     }
 
     if (!rs_in_l && !rs_in_r && !rs_out_l && !rs_out_r) {
         if (game_input_port_count > 0) {
-            rs_in_l = game_input_ports[0] + client_name_offset;
+            rs_in_l = clean_name(game_input_ports[0]);
 
             if (game_input_port_count > 1) {
-                rs_in_r = game_input_ports[1] + client_name_offset;
+                rs_in_r = clean_name(game_input_ports[1]);
             }
         }
 
         if (game_output_port_count > 0) {
-            rs_out_l = game_output_ports[0] + client_name_offset;
+            rs_out_l = clean_name(game_output_ports[0]);
 
             if (game_output_port_count > 1) {
-                rs_out_r = game_output_ports[1] + client_name_offset;
+                rs_out_r = clean_name(game_output_ports[1]);
             }
         }
     }
@@ -217,7 +261,7 @@ int jack_activate (jack_client_t *client) {
     if (game_input_port_count) {
         fprintf(log_file, "\nGame JACK Input Ports:\n");
         for (int i = 0; i < game_input_port_count; ++i) {
-            fprintf(log_file, "%s\n", pipewire ? game_input_ports[i] + client_name_offset : game_input_ports[i]);
+            fprintf(log_file, "%s\n", pipewire ? clean_name(game_input_ports[i]) : game_input_ports[i]);
         }
 
         free(game_input_ports);
@@ -226,7 +270,7 @@ int jack_activate (jack_client_t *client) {
     if (game_output_port_count) {
         fprintf(log_file, "\nGame JACK Output Ports:\n");
         for (int i = 0; i < game_output_port_count; ++i) {
-            fprintf(log_file, "%s\n", pipewire ? game_output_ports[i] + client_name_offset : game_output_ports[i]);
+            fprintf(log_file, "%s\n", pipewire ? clean_name(game_output_ports[i]) : game_output_ports[i]);
         }
 
         free(game_output_ports);
