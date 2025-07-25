@@ -10,6 +10,8 @@
 #include <errno.h>
 #include <ctype.h>
 
+#define SHIM_VERSION "1.1.1"
+
 const char* HW_IN_L_VAR = "RS_PHYS_INPUT_L";
 const char* HW_IN_R_VAR = "RS_PHYS_INPUT_R";
 const char* HW_OUT_L_VAR = "RS_PHYS_OUTPUT_L";
@@ -108,6 +110,7 @@ int jack_activate (jack_client_t *client) {
         return 1;
     }
 
+    fprintf(log_file, "Library version %s\n", SHIM_VERSION);
     fprintf(log_file, "Running shim library as %s\n", jack_get_client_name(client));
 
     // Do the real Jack stuff
