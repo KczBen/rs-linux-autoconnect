@@ -64,6 +64,11 @@ char* clean_name(const char* port_name) {
         return strdup(port_name);
     }
 
+    // no prefix
+    if (strncmp("pw-", port_name, 3) != 0) {
+        return strdup(port_name);
+    }
+
     // Format is pw-client-12:port, remove pw-
     port_name += 3;
     
@@ -142,9 +147,8 @@ int jack_activate (jack_client_t *client) {
 
     // Get all application ports
     // If we are on PipeWire, then the client gets a pw- prefix we can't connect to
-    const char prefix[] = "pw-";
     const char* client_name = jack_get_client_name(client);
-    if (strncmp(prefix, client_name, 3) == 0) {
+    if (strncmp("pw-", client_name, 3) == 0) {
         // PipeWire, offset the pointer
         pipewire = true;
         fprintf(log_file, "Running on PipeWire, searching for client %s\n", clean_name(client_name));
