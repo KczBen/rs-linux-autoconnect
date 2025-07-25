@@ -241,7 +241,7 @@ int jack_activate (jack_client_t *client) {
     if (phys_input_port_count) {
         fprintf(log_file, "\nPhysical JACK Input Ports:\n");
         for (int i = 0; i < phys_input_port_count; ++i) {
-            fprintf(log_file, "%s\n", phys_input_ports[i]);
+            fprintf(log_file, "%s\n", clean_name(phys_input_ports[i]));
         }
 
         free(phys_input_ports);
@@ -250,7 +250,7 @@ int jack_activate (jack_client_t *client) {
     if (phys_output_port_count) {
         fprintf(log_file, "\nPhysical JACK Output Ports:\n");
         for (int i = 0; i < phys_output_port_count; ++i) {
-            fprintf(log_file, "%s\n", phys_output_ports[i]);
+            fprintf(log_file, "%s\n", clean_name(phys_output_ports[i]));
         }
 
         free(phys_output_ports);
@@ -261,7 +261,7 @@ int jack_activate (jack_client_t *client) {
     if (game_input_port_count) {
         fprintf(log_file, "\nGame JACK Input Ports:\n");
         for (int i = 0; i < game_input_port_count; ++i) {
-            fprintf(log_file, "%s\n", pipewire ? clean_name(game_input_ports[i]) : game_input_ports[i]);
+            fprintf(log_file, "%s\n", clean_name(game_input_ports[i]));
         }
 
         free(game_input_ports);
@@ -270,7 +270,7 @@ int jack_activate (jack_client_t *client) {
     if (game_output_port_count) {
         fprintf(log_file, "\nGame JACK Output Ports:\n");
         for (int i = 0; i < game_output_port_count; ++i) {
-            fprintf(log_file, "%s\n", pipewire ? clean_name(game_output_ports[i]) : game_output_ports[i]);
+            fprintf(log_file, "%s\n", clean_name(game_output_ports[i]));
         }
 
         free(game_output_ports);
